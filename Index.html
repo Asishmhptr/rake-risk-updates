@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Rake Risk Admin</title>
+<style>
+:root{--bg:#eef1f3;--card:#fff;--tx:#1d242b;--mu:#667480;--bd:#d9dfe4;--ac:#0f6b62;--acx:#fff;--ok:#18794e;--bad:#b3261e;--warn:#9a6200;--row:#f6f8f9}
+@media(prefers-color-scheme:dark){:root{--bg:#12161a;--card:#1b2127;--tx:#e6e9ec;--mu:#93a0ab;--bd:#2b333b;--ac:#3ab5a8;--acx:#06201d;--ok:#48c08a;--bad:#f0746c;--warn:#e3a93f;--row:#20272e}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.5 "Segoe UI",system-ui,sans-serif}
+header{display:flex;align-items:center;gap:16px;padding:14px 24px;background:var(--card);border-bottom:1px solid var(--bd);flex-wrap:wrap}
+header h1{font-size:18px;margin:0;font-weight:700;letter-spacing:.2px}
+nav{display:flex;gap:4px;margin-left:12px}
+nav button{background:none;border:0;padding:8px 14px;border-radius:6px;color:var(--mu);font:inherit;cursor:pointer}
+nav button.on{background:var(--ac);color:var(--acx)}
+.sp{flex:1}
+main{max-width:1180px;margin:0 auto;padding:24px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:20px;margin-bottom:20px}
+h2{font-size:17px;margin:0 0 14px}
+label{display:block;font-size:13px;color:var(--mu);margin:12px 0 4px}
+input,select,textarea{width:100%;padding:9px 10px;border:1px solid var(--bd);border-radius:6px;background:var(--bg);color:var(--tx);font:inherit}
+input:focus,select:focus,textarea:focus,button:focus-visible{outline:2px solid var(--ac);outline-offset:1px}
+textarea{min-height:90px;resize:vertical}
+.btn{padding:8px 14px;border-radius:6px;border:1px solid var(--bd);background:var(--card);color:var(--tx);font:inherit;cursor:pointer}
+.btn.p{background:var(--ac);color:var(--acx);border-color:var(--ac);font-weight:600}
+.btn.d{color:var(--bad)}
+.btn.s{padding:4px 9px;font-size:13px}
+.bar{display:flex;gap:10px;align-items:center;margin-bottom:14px;flex-wrap:wrap}
+.bar input{max-width:280px}
+.tw{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th{text-align:left;font-weight:600;color:var(--mu);padding:8px 10px;border-bottom:1px solid var(--bd);white-space:nowrap}
+td{padding:9px 10px;border-bottom:1px solid var(--bd);vertical-align:middle}
+tr:hover td{background:var(--row)}
+.act{display:flex;gap:5px;flex-wrap:wrap}
+.tag{display:inline-block;padding:2px 9px;border-radius:99px;font-size:12px;font-weight:600;border:1px solid currentColor}
+.t-active{color:var(--ok)}.t-expired{color:var(--warn)}.t-blocked{color:var(--bad)}
+.mu{color:var(--mu);font-size:13px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:0 16px}
+@media(max-width:640px){.grid{grid-template-columns:1fr}main{padding:14px}}
+.ck{display:flex;gap:8px;align-items:center;margin-top:14px;color:var(--tx);font-size:14px}
+.ck input{width:auto}
+dialog{border:1px solid var(--bd);border-radius:10px;background:var(--card);color:var(--tx);width:min(460px,92vw);padding:22px}
+dialog::backdrop{background:rgba(0,0,0,.45)}
+pre{background:var(--bg);border:1px solid var(--bd);border-radius:6px;padding:14px;overflow:auto;font:13px/1.5 Consolas,monospace;margin:0 0 12px}
+.msg{padding:10px 12px;border-radius:6px;border:1px solid var(--bd);margin-top:12px;font-size:14px}
+#toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--tx);color:var(--bg);padding:10px 18px;border-radius:8px;display:none;z-index:9;max-width:90vw}
+.hide{display:none!important}
+.narrow{max-width:520px;margin:48px auto}
+</style>
+</head>
+<body>
+<header id="hdr" class="hide">
+  <h1>Rake Risk Admin</h1>
+  <nav>
+    <button data-tab="users" class="on">Users</button>
+    <button data-tab="updates">Updates</button>
+    <button data-tab="setup">Setup help</button>
+  </nav>
+  <span class="sp"></span>
+  <span class="mu" id="who"></span>
+  <button class="btn s" id="out">Sign out</button>
+</header>
+
+<main>
+  <!-- Firebase config -->
+  <section id="v-cfg" class="card narrow hide">
+    <h2>Connect to your Firebase project</h2>
+    <p class="mu">In Firebase console: Project settings, then Your apps, then the web app. Copy the <b>firebaseConfig</b> block and paste it here. It is saved in this browser only.</p>
+    <textarea id="cfgTxt" placeholder='{ "apiKey": "...", "authDomain": "...", "projectId": "...", "appId": "..." }'></textarea>
+    <p><button class="btn p" id="cfgSave">Save and continue</button></p>
+    <div class="msg hide" id="cfgErr"></div>
+  </section>
+
+  <!-- Login -->
+  <section id="v-login" class="card narrow hide">
+    <h2>Admin sign in</h2>
+    <label>Email</label><input id="lEmail" type="email" autocomplete="username">
+    <label>Password</label><input id="lPass" type="password" autocomplete="current-password">
+    <p><button class="btn p" id="lGo">Sign in</button> <button class="btn" id="cfgChange">Change Firebase project</button></p>
+    <div class="msg hide" id="lErr"></div>
+  </section>
+
+  <!-- Not admin -->
+  <section id="v-noadm" class="card narrow hide">
+    <h2>This account is not an admin</h2>
+    <p>In Firestore, create a document in collection <b>admins</b> with this exact document ID, then sign in again:</p>
+    <pre id="uidBox"></pre>
+    <button class="btn" id="noadmOut">Sign out</button>
+  </section>
+
+  <!-- Users -->
+  <section id="v-users" class="hide">
+    <div class="card">
+      <div class="bar">
+        <h2 style="margin:0">Users <span class="mu" id="cnt"></span></h2>
+        <span class="sp"></span>
+        <input id="q" placeholder="Search email or name">
+        <select id="flt" style="max-width:150px"><option value="">All</option><option>active</option><option>expired</option><option>blocked</option></select>
+        <button class="btn" id="ref">Refresh</button>
+        <button class="btn p" id="add">Add user</button>
+      </div>
+      <div class="tw"><table>
+        <thead><tr><th>User</th><th>Plan</th><th>Status</th><th>Expires</th><th>Version</th><th>Last seen</th><th>Actions</th></tr></thead>
+        <tbody id="tb"></tbody>
+      </table></div>
+      <p class="mu" id="empty" style="display:none">No users yet. Choose Add user to create the first one.</p>
+    </div>
+  </section>
+
+  <!-- Updates -->
+  <section id="v-updates" class="hide">
+    <div class="card" style="max-width:720px">
+      <h2>Publish an update</h2>
+      <p class="mu">Run make_update_package.bat to create the update ZIP (new EXE and/or Templates). Upload it somewhere with a direct download link (Google Drive, GitHub Releases, Dropbox), then fill this in. The app reads it at every start.</p>
+      <div class="grid">
+        <div><label>Latest version</label><input id="uLatest" placeholder="1.1"></div>
+        <div><label>Minimum allowed version</label><input id="uMin" placeholder="1.0"></div>
+      </div>
+      <label>Download link (the ZIP)</label><input id="uUrl" placeholder="https://...">
+      <label>SHA-256 checksum (printed by make_update_package; strongly recommended)</label><input id="uSha" placeholder="64 characters">
+      <label>What is new</label><textarea id="uNotes"></textarea>
+      <label class="ck"><input type="checkbox" id="uForce"> Force everyone to update now (sets minimum = latest)</label>
+      <label class="ck"><input type="checkbox" id="uKill"> Emergency stop: block the app for all users</label>
+      <p><button class="btn p" id="uSave">Publish update</button></p>
+      <p class="mu" id="uInfo"></p>
+    </div>
+  </section>
+
+  <!-- Setup help -->
+  <section id="v-setup" class="hide">
+    <div class="card">
+      <h2>Firestore security rules</h2>
+      <p class="mu">Firestore Database, then Rules. Paste this and publish. It makes you the only one who can change subscriptions and updates.</p>
+      <pre id="rules"></pre>
+      <button class="btn" id="copyRules">Copy rules</button>
+    </div>
+    <div class="card">
+      <h2>One-time setup</h2>
+      <ol>
+        <li>Firebase console: Authentication, Sign-in method, enable <b>Email/Password</b>.</li>
+        <li>Create your own admin login: Authentication, Users, Add user.</li>
+        <li>Firestore Database: create a collection <b>admins</b>, with a document whose ID is your admin UID (shown on first sign in here).</li>
+        <li>Paste the rules above and publish.</li>
+        <li>Sign in here and add customers on the Users tab.</li>
+      </ol>
+    </div>
+  </section>
+</main>
+
+<dialog id="dlg">
+  <h2 id="dTitle">Add user</h2>
+  <label>Email</label><input id="dEmail" type="email">
+  <div id="dPassW"><label>Password (at least 6 characters)</label><input id="dPass" type="text"></div>
+  <label>Name</label><input id="dName">
+  <div class="grid">
+    <div><label>Plan</label><input id="dPlan" value="Standard"></div>
+    <div><label>Expires on</label><input id="dExp" type="date"></div>
+  </div>
+  <p style="display:flex;gap:8px;justify-content:flex-end;margin-bottom:0">
+    <button class="btn" id="dCancel">Cancel</button><button class="btn p" id="dSave">Save</button>
+  </p>
+</dialog>
+<div id="toast"></div>
+
+<script type="module">
+import {initializeApp,deleteApp} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import {getAuth,signInWithEmailAndPassword,signOut,onAuthStateChanged,createUserWithEmailAndPassword,sendPasswordResetEmail} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import {getFirestore,collection,getDocs,doc,getDoc,setDoc,updateDoc,deleteDoc,Timestamp,serverTimestamp} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const DAY=864e5;
+let cfg=null,app,auth,db,users=[],editId=null;
+
+const RULES=`rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isAdmin() {
+      return request.auth != null &&
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+    match /admins/{id} {
+      allow read: if request.auth != null && request.auth.uid == id;
+    }
+    match /users/{uid} {
+      allow read: if request.auth != null && (request.auth.uid == uid || isAdmin());
+      allow write: if isAdmin();
+      allow update: if request.auth != null && request.auth.uid == uid &&
+        request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['lastSeen','lastVersion','deviceId']);
+    }
+    match /app_config/{docId} {
+      allow read: if request.auth != null;
+      allow write: if isAdmin();
+    }
+  }
+}`;
+$("rules").textContent=RULES;
+
+function toast(m,bad){const t=$("toast");t.textContent=m;t.style.background=bad?"var(--bad)":"var(--tx)";t.style.color=bad?"#fff":"var(--bg)";t.style.display="block";clearTimeout(toast.h);toast.h=setTimeout(()=>t.style.display="none",3800)}
+function show(v){["cfg","login","noadm","users","updates","setup"].forEach(k=>$("v-"+k).classList.toggle("hide",k!==v));
+  $("hdr").classList.toggle("hide",!["users","updates","setup"].includes(v));
+  document.querySelectorAll("nav button").forEach(b=>b.classList.toggle("on",b.dataset.tab===v))}
+const fmt=d=>d?d.toLocaleDateString(undefined,{day:"2-digit",month:"short",year:"numeric"}):"-";
+const fmtT=d=>d?d.toLocaleString(undefined,{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"}):"Never";
+const ymd=d=>{const z=new Date(d.getTime()-d.getTimezoneOffset()*6e4);return z.toISOString().slice(0,10)};
+const dt=v=>v&&v.toDate?v.toDate():null;
+
+/* ---- config + auth ---- */
+function loadCfg(){try{return JSON.parse(localStorage.getItem("rr_cfg")||"null")}catch(e){return null}}
+function parseCfg(txt){
+  let s=txt.trim().replace(/^[^{]*=\s*/,"").replace(/;\s*$/,"");
+  try{return JSON.parse(s)}catch(e){}
+  const o={};for(const m of s.matchAll(/([A-Za-z]+)\s*:\s*["']([^"']*)["']/g))o[m[1]]=m[2];
+  return o.apiKey&&o.projectId?o:null}
+function boot(){
+  app=initializeApp(cfg);auth=getAuth(app);db=getFirestore(app);
+  onAuthStateChanged(auth,async u=>{
+    if(!u){show("login");return}
+    try{
+      const a=await getDoc(doc(db,"admins",u.uid));
+      if(!a.exists()){$("uidBox").textContent=u.uid;show("noadm");return}
+    }catch(e){$("uidBox").textContent=u.uid;show("noadm");return}
+    $("who").textContent=u.email;show("users");loadUsers();loadConfig()});
+}
+$("cfgSave").onclick=()=>{
+  const c=parseCfg($("cfgTxt").value);const e=$("cfgErr");
+  if(!c){e.textContent="Could not read that. Paste the whole firebaseConfig block, including apiKey and projectId.";e.classList.remove("hide");return}
+  try{localStorage.setItem("rr_cfg",JSON.stringify(c))}catch(x){}
+  cfg=c;boot()};
+$("cfgChange").onclick=()=>{try{localStorage.removeItem("rr_cfg")}catch(x){}location.reload()};
+$("lGo").onclick=async()=>{
+  const e=$("lErr");e.classList.add("hide");
+  try{await signInWithEmailAndPassword(auth,$("lEmail").value.trim(),$("lPass").value)}
+  catch(x){e.textContent="Sign in failed: "+(x.code||x.message).replace("auth/","").replace(/-/g," ");e.classList.remove("hide")}};
+$("lPass").onkeydown=e=>{if(e.key==="Enter")$("lGo").click()};
+$("out").onclick=$("noadmOut").onclick=()=>signOut(auth);
+document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>show(b.dataset.tab));
+$("copyRules").onclick=async()=>{try{await navigator.clipboard.writeText(RULES);toast("Rules copied")}catch(e){toast("Select the text and copy it manually",1)}};
+
+/* ---- users ---- */
+function status(u){
+  if(u.status==="blocked")return"blocked";
+  const x=dt(u.expiresAt);return(!x||x.getTime()<Date.now())?"expired":"active"}
+async function loadUsers(){
+  try{const s=await getDocs(collection(db,"users"));
+    users=s.docs.map(d=>({id:d.id,...d.data()}));renderUsers()}
+  catch(e){toast("Could not load users: "+(e.code||e.message),1)}}
+function renderUsers(){
+  const q=$("q").value.toLowerCase(),f=$("flt").value;
+  const list=users.filter(u=>(!q||(u.email+" "+(u.name||"")).toLowerCase().includes(q))&&(!f||status(u)===f))
+    .sort((a,b)=>(a.email||"").localeCompare(b.email||""));
+  $("cnt").textContent="("+list.length+" of "+users.length+")";
+  $("empty").style.display=users.length?"none":"block";
+  $("tb").innerHTML=list.map(u=>{
+    const st=status(u),x=dt(u.expiresAt),left=x?Math.ceil((x-Date.now())/DAY):null;
+    const lt=st==="active"&&left!==null?`<div class="mu">${left} day${left===1?"":"s"} left</div>`:"";
+    return`<tr><td><b>${esc(u.email)}</b><div class="mu">${esc(u.name||"")}</div></td>
+    <td>${esc(u.plan||"-")}</td><td><span class="tag t-${st}">${st}</span></td>
+    <td>${fmt(x)}${lt}</td><td>${esc(u.lastVersion||"-")}</td><td>${fmtT(dt(u.lastSeen))}</td>
+    <td><div class="act" data-id="${u.id}">
+      <button class="btn s" data-a="m">+30d</button><button class="btn s" data-a="y">+1y</button>
+      <button class="btn s ${st==="blocked"?"":"d"}" data-a="b">${st==="blocked"?"Unblock":"Block"}</button>
+      <button class="btn s" data-a="e">Edit</button>
+      <button class="btn s" data-a="dev" title="Let the user log in from a new PC">Reset PC</button>
+      <button class="btn s" data-a="pw">Reset password</button>
+      <button class="btn s d" data-a="del">Delete</button></div></td></tr>`}).join("")}
+$("q").oninput=$("flt").onchange=renderUsers;$("ref").onclick=loadUsers;
+
+$("tb").onclick=async e=>{
+  const b=e.target.closest("button[data-a]");if(!b)return;
+  const id=b.parentElement.dataset.id,u=users.find(x=>x.id===id),a=b.dataset.a,ref=doc(db,"users",id);
+  try{
+    if(a==="m"||a==="y"){
+      const cur=dt(u.expiresAt),base=cur&&cur.getTime()>Date.now()?cur:new Date();
+      const n=new Date(base.getTime()+(a==="m"?30:365)*DAY);
+      await updateDoc(ref,{expiresAt:Timestamp.fromDate(n),status:"active"});toast("Extended to "+fmt(n))}
+    else if(a==="b"){const s=u.status==="blocked"?"active":"blocked";await updateDoc(ref,{status:s});toast(s==="blocked"?"User blocked":"User unblocked")}
+    else if(a==="dev"){await updateDoc(ref,{deviceId:""});toast("PC lock cleared")}
+    else if(a==="pw"){await sendPasswordResetEmail(auth,u.email);toast("Reset email sent to "+u.email)}
+    else if(a==="e"){openDlg(u);return}
+    else if(a==="del"){
+      if(!confirm("Delete "+u.email+"?\n\nThis removes their subscription record, so the app will stop letting them in. Their login stays in Firebase Authentication until you delete it there."))return;
+      await deleteDoc(ref);toast("User deleted")}
+    loadUsers()}catch(x){toast("Failed: "+(x.code||x.message),1)}};
+
+function openDlg(u){
+  editId=u?u.id:null;
+  $("dTitle").textContent=u?"Edit user":"Add user";
+  $("dEmail").value=u?u.email:"";$("dEmail").disabled=!!u;
+  $("dPassW").classList.toggle("hide",!!u);$("dPass").value="";
+  $("dName").value=u?u.name||"":"";$("dPlan").value=u?u.plan||"":"Standard";
+  const x=u&&dt(u.expiresAt);$("dExp").value=ymd(x||new Date(Date.now()+30*DAY));
+  $("dlg").showModal()}
+$("add").onclick=()=>openDlg(null);
+$("dCancel").onclick=()=>$("dlg").close();
+$("dSave").onclick=async()=>{
+  const email=$("dEmail").value.trim(),exp=new Date($("dExp").value+"T23:59:59");
+  if(!email||isNaN(exp)){toast("Enter an email and an expiry date",1);return}
+  const data={name:$("dName").value.trim(),plan:$("dPlan").value.trim(),expiresAt:Timestamp.fromDate(exp)};
+  try{
+    if(editId){await updateDoc(doc(db,"users",editId),data)}
+    else{
+      const pw=$("dPass").value;if(pw.length<6){toast("Password needs at least 6 characters",1);return}
+      const sec=initializeApp(cfg,"sec"+Date.now());
+      try{const c=await createUserWithEmailAndPassword(getAuth(sec),email,pw);
+        await setDoc(doc(db,"users",c.user.uid),{...data,email,status:"active",deviceId:"",createdAt:serverTimestamp()})}
+      finally{await deleteApp(sec)}}
+    $("dlg").close();toast("Saved");loadUsers()}
+  catch(x){toast("Failed: "+(x.code||x.message),1)}};
+
+/* ---- updates ---- */
+const cref=()=>doc(db,"app_config","rake_risk");
+async function loadConfig(){
+  try{const s=await getDoc(cref());if(!s.exists())return;const d=s.data();
+    $("uLatest").value=d.latestVersion||"";$("uMin").value=d.minVersion||"";$("uUrl").value=d.downloadUrl||"";
+    $("uNotes").value=d.releaseNotes||"";$("uSha").value=d.sha256||"";$("uKill").checked=!!d.killSwitch;
+    $("uInfo").textContent=d.updatedAt?"Last published "+fmtT(dt(d.updatedAt)):""}catch(e){}}
+$("uSave").onclick=async()=>{
+  const latest=$("uLatest").value.trim();let min=$("uMin").value.trim();
+  if(!latest){toast("Enter the latest version",1);return}
+  if($("uForce").checked){min=latest;$("uMin").value=min}
+  if(!min)min=latest;
+  if($("uKill").checked&&!confirm("Emergency stop will block the app for EVERY user. Continue?"))return;
+  try{await setDoc(cref(),{latestVersion:latest,minVersion:min,downloadUrl:$("uUrl").value.trim(),sha256:$("uSha").value.trim().toLowerCase(),
+      releaseNotes:$("uNotes").value.trim(),killSwitch:$("uKill").checked,updatedAt:serverTimestamp()},{merge:true});
+    $("uForce").checked=false;toast("Published");loadConfig()}
+  catch(x){toast("Failed: "+(x.code||x.message),1)}};
+
+const DEFAULT_CFG={apiKey:"AIzaSyBt8qq17nmxJ9ZtIDLPMOE_6WQB6lLSpQ0",authDomain:"authorization-5ee30.firebaseapp.com",projectId:"authorization-5ee30",storageBucket:"authorization-5ee30.firebasestorage.app",messagingSenderId:"233299166310",appId:"1:233299166310:web:4e04d284fed381053099a7"};
+cfg=loadCfg()||DEFAULT_CFG;
+boot();
+</script>
+</body>
+</html>
