@@ -33,6 +33,8 @@ The program is not code-signed, so Windows SmartScreen shows this on the first r
 
 The bar at the top of the window shows who is signed in, when the subscription ends, and the **Sign out** button.
 
+**Light and dark mode:** use the **Auto / Light / Dark** switch in the top bar. *Auto* follows your Windows setting and changes by itself when Windows does. Your choice is remembered.
+
 ---
 
 ## Updates
